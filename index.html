@@ -3525,17 +3525,15 @@
         <button class="main-btn" onclick="main_showModeSelect()">ゲームスタート</button>
     </div>
 </div>
-
 <!-- モード選択画面 -->
 <div id="mode-select-screen" class="screen">
     <h1 class="game-title">モードを選んでね</h1>
     <div class="button-container">
         <button class="main-btn" onclick="main_showlvSelect()">れんしゅうモード</button>
-        <button class="main-btn" onclick="main_startMatomeMode()">まとめモード</button>
+        <button class="main-btn" onclick="main_startMatomeMode()" disabled>まとめモード</button>
         <button class="back-btn" onclick="main_showStart()">もどる</button>
     </div>
 </div>
-
 <!-- レベル選択画面 -->
 <div id="lv-select-screen" class="screen">
     <h1 class="game-title">レベルをえらんでね</h1>
@@ -4144,6 +4142,15 @@
                 <div>✅ みつけたペア: <span id="lv7-foundPairs">0</span></div>
             </div>
             <div class="lv7-number-grid" id="lv7-numberGrid"></div>
+
+<!-- 追加：もんだいをかえるボタン -->
+<div style="text-align: center; margin: 20px 0;">
+    <button class="lv7-button" onclick="lv7_changeQuestion()" id="lv7-changeButton">
+        🔄 もんだいを かえる 🔄
+    </button>
+</div>
+
+
             <div class="lv7-question-clear-message" id="lv7-questionClearMessage">
                 🎉 １もんせいかい！ 🎉
                 <br>
@@ -4237,9 +4244,30 @@
             main_showScreen('start-screen');
         }
 
-        function main_showModeSelect() {
-            main_showScreen('mode-select-screen');
-        }
+
+// まとめモードボタンの状態を更新する関数
+function main_updateMatomeButton() {
+    const matomeBtn = document.querySelector('button[onclick="main_startMatomeMode()"]');
+    const totalLevels = 7; // 全レベル数
+    const allLevelsCleared = main_gameState.clearedlvs.length === totalLevels;
+    
+    if (allLevelsCleared) {
+        matomeBtn.disabled = false;
+        matomeBtn.textContent = 'まとめモード';
+        matomeBtn.style.opacity = '1';
+    } else {
+        matomeBtn.disabled = true;
+        matomeBtn.textContent = `まとめモード (${main_gameState.clearedlvs.length}/${totalLevels})`;
+        matomeBtn.style.opacity = '0.5';
+    }
+}
+
+
+
+function main_showModeSelect() {
+    main_showScreen('mode-select-screen');
+    main_updateMatomeButton(); // この行を追加
+}
 
         function main_showlvSelect() {
             main_gameState.currentMode = 'practice';
@@ -4247,13 +4275,19 @@
             main_showScreen('lv-select-screen');
         }
 
-        function main_startMatomeMode() {
-            main_gameState.currentMode = 'matome';
-            main_gameState.currentlv = 1;
-            main_gameState.totalBonusScore = 0;
-            main_gameState.bonusScores = [];
-            main_startlv(1);
-        }
+       function main_startMatomeMode() {
+    // 全レベルクリアしているかチェック
+    if (main_gameState.clearedlvs.length < 7) {
+        alert('すべてのレベルをクリアしてから まとめモードに ちょうせんしてね！');
+        return;
+    }
+    
+    main_gameState.currentMode = 'matome';
+    main_gameState.currentlv = 1;
+    main_gameState.totalBonusScore = 0;
+    main_gameState.bonusScores = [];
+    main_startlv(1);
+}
 
         function main_startlv(lv) {
             main_gameState.currentlv = lv;
@@ -4308,21 +4342,25 @@
             });
         }
 
-        function main_lvCleared(lv) {
-            if (!main_gameState.clearedlvs.includes(lv)) {
-                main_gameState.clearedlvs.push(lv);
-                main_saveClearedlvs(); // ローカルストレージに保存
-            }
+     function main_lvCleared(lv) {
+    if (!main_gameState.clearedlvs.includes(lv)) {
+        main_gameState.clearedlvs.push(lv);
+        main_saveClearedlvs(); // ローカルストレージに保存
+    }
 
-            if (main_gameState.currentMode === 'matome') {
-                // まとめモードの場合、ボーナスゲームへ
-                const bonusTime = (lv === 7) ? 180 : 60; // レベル7は3分、他は1分
-                bonus_startGame(bonusTime);
-            } else {
-                // れんしゅうモードの場合、レベル選択に戻る
-                main_showlvSelect();
-            }
-        }
+    if (main_gameState.currentMode === 'matome') {
+        // まとめモードの場合、ボーナスゲームへ
+        const bonusTime = (lv === 7) ? 180 : 60; // レベル7は3分、他は1分
+        bonus_startGame(bonusTime);
+    } else {
+        // れんしゅうモードの場合、レベル選択に戻る
+        main_showlvSelect();
+        // モード選択に戻る際にまとめボタンの状態を更新
+        setTimeout(() => {
+            main_updateMatomeButton();
+        }, 100);
+    }
+}
 
         function main_bonusGameEnded(score) {
             main_gameState.bonusScores.push(score);
@@ -7240,8 +7278,32 @@ lv6_showCompletion() {
         lv7_currentQuestion = 1;
         lv7_correctAnswers = 0;
         lv7_updateDisplay();
+ // 追加：ボタンの初期表示設定
+    document.getElementById('lv7-changeButton').style.display = 'inline-block';
+
         lv7_generateNewQuestion();
     }
+
+
+// 「もんだいをかえる」ボタンがクリックされた時の処理
+function lv7_changeQuestion() {
+    // 現在の問題をリセット
+    lv7_selectedCard = null;
+    lv7_matchedPairs = 0;
+    lv7_remainingCards = 10;
+    
+    // メッセージをクリア
+    document.getElementById('lv7-questionClearMessage').style.display = 'none';
+    document.getElementById('lv7-clearMessage').style.display = 'none';
+    document.getElementById('lv7-nextButton').style.display = 'none';
+    document.getElementById('lv7-restartButton').style.display = 'none';
+    
+    // 新しい問題を生成
+    lv7_generateNewQuestion();
+}
+
+
+
 
  function lv7_generateNewQuestion() {
         let attempts = 0;
@@ -7310,8 +7372,14 @@ lv6_showCompletion() {
         
         lv7_updateDisplay();
         lv7_displayNumbers();
-    }
 
+ // 追加：ボタンの表示制御
+    document.getElementById('lv7-changeButton').style.display = 'inline-block';
+    document.getElementById('lv7-questionClearMessage').style.display = 'none';
+    document.getElementById('lv7-clearMessage').style.display = 'none';
+    document.getElementById('lv7-nextButton').style.display = 'none';
+    document.getElementById('lv7-restartButton').style.display = 'none';
+}
     function lv7_updateDisplay() {
         document.getElementById('lv7-targetNumber').textContent = lv7_targetNumber;
         document.getElementById('lv7-correctCount').textContent = lv7_correctAnswers;
@@ -7383,6 +7451,10 @@ lv6_showCompletion() {
                         lv7_correctAnswers++;
                         lv7_updateDisplay();
                         document.getElementById('lv7-questionClearMessage').style.display = 'block';
+
+    // 追加：もんだいをかえるボタンを非表示
+    document.getElementById('lv7-changeButton').style.display = 'none';
+
                         
                         // 全問題完了チェック
                        // 修正後
